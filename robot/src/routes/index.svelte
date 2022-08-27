@@ -1,7 +1,7 @@
 <script lang='ts'>
   // TODO: https://askubuntu.com/a/1123260
   import {browser} from '$app/env';
-  import './../KMConnectorBrowser.js?client';
+  import './../KMConnectorBrowser.js';
 
   let KMB1: any;
   let KMB2: any;
