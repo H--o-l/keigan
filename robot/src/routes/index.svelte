@@ -7,34 +7,42 @@
   import {browser} from '$app/env';
   import './../KMConnectorBrowser.js';
 
-  let KMB1: any;
-  let KMB2: any;
-  let speed = 30;
+  let kmbRight: any; // JPY9
+  let kmbLeft: any; // F9
+  let leftOk = false;
+  let speed = 0;
   let displayCoords = {x: 50, y: 50};
 
-  KMB1 = new (window as any).KMMotorOneWebBLE();
-  KMB2 = new (window as any).KMMotorOneWebBLE();
+  kmbRight = new (window as any).KMMotorOneWebBLE();
+  kmbLeft = new (window as any).KMMotorOneWebBLE();
 
-  KMB1.on(KMB1.EVENT_TYPE.init, (kMDeviceInfo: any) => {
+  kmbRight.on(kmbRight.EVENT_TYPE.init, (kMDeviceInfo: any) => {
     console.log('onInit:'+kMDeviceInfo.name);
-    KMB1.cmdDisableIMUMeasurement();
-    KMB1.cmdDisable();
-    KMB1.cmdMaxTorque(0.15);
-    KMB1.cmdMaxSpeed(50);
-    KMB1.cmdLed(1, 0, 0, 255);
+    kmbRight.cmdDisableIMUMeasurement();
+    kmbRight.cmdDisable();
+    kmbRight.cmdSpeed_rpm(0);
+    kmbRight.cmdMaxTorque(0.15);
+    kmbRight.cmdMaxSpeed(50);
+    kmbRight.cmdLed(1, 0, 0, 255);
+    kmbRight.cmdEnable();
+    kmbRight.cmdRunForward();
+    leftOk = true;
   });
-  KMB2.on(KMB2.EVENT_TYPE.init, (kMDeviceInfo: any) => {
+  kmbLeft.on(kmbLeft.EVENT_TYPE.init, (kMDeviceInfo: any) => {
     console.log('onInit:'+kMDeviceInfo.name);
-    KMB2.cmdDisableIMUMeasurement();
-    KMB2.cmdDisable();
-    KMB2.cmdMaxTorque(0.15);
-    KMB2.cmdMaxSpeed(50);
-    KMB2.cmdLed(1, 0, 0, 255);
+    kmbLeft.cmdDisableIMUMeasurement();
+    kmbLeft.cmdDisable();
+    kmbLeft.cmdSpeed_rpm(0);
+    kmbLeft.cmdMaxTorque(0.15);
+    kmbLeft.cmdMaxSpeed(50);
+    kmbLeft.cmdLed(1, 0, 0, 255);
+    kmbLeft.cmdEnable();
+    kmbLeft.cmdRunReverse();
   });
-  KMB1.on(KMB1.EVENT_TYPE.connectFailure,function(kMDeviceInfo: any, err: any){
+  kmbRight.on(kmbRight.EVENT_TYPE.connectFailure,function(kMDeviceInfo: any, err: any){
     console.warn('error: ', err);
   });
-  KMB2.on(KMB1.EVENT_TYPE.connectFailure,function(kMDeviceInfo: any, err: any){
+  kmbLeft.on(kmbRight.EVENT_TYPE.connectFailure,function(kMDeviceInfo: any, err: any){
     console.warn('error: ', err);
   });
 
@@ -69,58 +77,45 @@
     displayCoords.x = 100 - ((coords.x + 100) / 2);
     displayCoords.y = (coords.y + 100) / 2;
   }
-  function onMove1() {
-    KMB1.cmdEnable();
-    KMB1.cmdSpeed_rpm(speed);
-    KMB1.cmdRunForward();
+  async function connectRight() {
+    await kmbRight.connect();
   }
-  function onMove2() {
-    KMB2.cmdEnable();
-    KMB2.cmdSpeed_rpm(speed);
-    KMB2.cmdRunReverse();
+  async function connectLeft() {
+    await kmbLeft.connect();
   }
-  function stop1() {
-    KMB1.cmdFree();
+  function stop() {
+    kmbRight.cmdSpeed_rpm(0);
+    kmbRight.cmdRunForward();
+    kmbLeft.cmdSpeed_rpm(0);
+    kmbLeft.cmdRunReverse();
   }
-  function stop2() {
-    KMB2.cmdFree();
-  }
-  async function disconnect1() {
-    KMB1.cmdFree();
-    KMB1.cmdLed(1, 255, 0, 0);
+  async function disconnect() {
+    kmbRight.cmdFree();
+    kmbRight.cmdLed(1, 255, 0, 0);
+    kmbLeft.cmdFree();
+    kmbLeft.cmdLed(1, 255, 0, 0);
     await new Promise(r => setTimeout(r, 1000));
-    KMB1.disConnect();
-  }
-  async function disconnect2() {
-    KMB2.cmdFree();
-    KMB2.cmdLed(1, 255, 0, 0);
-    await new Promise(r => setTimeout(r, 1000));
-    KMB2.disConnect();
+    kmbRight.disConnect();
+    kmbLeft.disConnect();
   }
   function onChange() {
-    KMB1.cmdSpeed_rpm(speed);
-    KMB1.cmdRunForward();
-    KMB2.cmdSpeed_rpm(speed);
-    KMB2.cmdRunReverse();
+    kmbRight.cmdSpeed_rpm(speed);
+    kmbRight.cmdRunForward();
+    kmbLeft.cmdSpeed_rpm(speed);
+    kmbLeft.cmdRunReverse();
   }
 </script>
 
 <div class='global'>
-  <label style='display: block;'>
-    Speed:
-    <input type='range' bind:value={speed} on:change={onChange} min='25' max='50'>
-  </label>
   <div class='column'>
-    <button on:click={KMB1.connect()}>connect1</button>
-    <button on:click={onMove1}>move1</button>
-    <button on:click={stop1}>stop1</button>
-    <button on:click={disconnect1}>disConnect1</button>
-  </div>
-  <div class='column'>
-    <button on:click={KMB2.connect()}>connect2</button>
-    <button on:click={onMove2}>move2</button>
-    <button on:click={stop2}>stop2</button>
-    <button on:click={disconnect2}>disConnect2</button>
+    <button on:click={stop}>stop</button>
+    <button on:click={connectRight}>connectRight</button>
+    <button on:click={connectLeft}>connectLeft</button>
+    <button on:click={disconnect}>disConnect</button>
+    <label style='display: block;'>
+      Speed:
+      <input type='range' bind:value={speed} on:change={onChange} min='0' max='50'>
+    </label>
   </div>
   <div class='column'>
     <button on:click={bangleConnect}>bangle</button>
