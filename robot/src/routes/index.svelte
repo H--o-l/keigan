@@ -7,8 +7,17 @@
   import {browser} from '$app/env';
   import './../KMConnectorBrowser.js';
 
-  let kmbRight: any; // JPY9
+  let lastCall = 0;
+  function throttle<T extends (...args: any[]) => void>(fn: T, interval: number): void {
+    const currentTime = Date.now();
+    if (currentTime - lastCall >= interval) {
+      lastCall = currentTime;
+      fn(...arguments);
+    }
+  }
+
   let kmbLeft: any; // F9
+  let kmbRight: any; // JPY9
   let leftOk = false;
   let speed = 0;
   let displayCoords = {x: 50, y: 50};
@@ -21,8 +30,9 @@
     kmbRight.cmdDisableIMUMeasurement();
     kmbRight.cmdDisable();
     kmbRight.cmdSpeed_rpm(0);
-    kmbRight.cmdMaxTorque(0.15);
-    kmbRight.cmdMaxSpeed(50);
+    // kmbRight.cmdMaxTorque(0.15);
+    kmbRight.cmdMaxTorque(50);
+    kmbRight.cmdMaxSpeed(100);
     kmbRight.cmdLed(1, 0, 0, 255);
     kmbRight.cmdEnable();
     kmbRight.cmdRunForward();
@@ -33,8 +43,9 @@
     kmbLeft.cmdDisableIMUMeasurement();
     kmbLeft.cmdDisable();
     kmbLeft.cmdSpeed_rpm(0);
-    kmbLeft.cmdMaxTorque(0.15);
-    kmbLeft.cmdMaxSpeed(50);
+    // kmbLeft.cmdMaxTorque(0.15);
+    kmbLeft.cmdMaxTorque(50);
+    kmbLeft.cmdMaxSpeed(100);
     kmbLeft.cmdLed(1, 0, 0, 255);
     kmbLeft.cmdEnable();
     kmbLeft.cmdRunReverse();
@@ -74,8 +85,25 @@
     });
   }
   function newAcc(coords: {x: number, y: number, z: number}) {
-    displayCoords.x = 100 - ((coords.x + 100) / 2);
-    displayCoords.y = (coords.y + 100) / 2;
+    const x = 100 - ((coords.x + 100) / 2);
+    const y = (coords.y + 100) / 2;
+    displayCoords = {x, y};
+    // console.warn('x', x, 'y', y)
+    let speedLeft = 0;
+    let speedRight = 0;
+    let tmpY = y - 50;
+    let tmpX = x / 3;
+    if (tmpY > 0) {
+      speedLeft = Math.max(tmpY - (33 - tmpX), 0) * 3;
+      speedRight = Math.max(tmpY - tmpX, 0) * 3;
+    }
+    throttle(() => {
+      console.warn('left', speedLeft, 'right', speedRight)
+      kmbLeft.cmdSpeed_rpm(speedLeft);
+      kmbRight.cmdSpeed_rpm(speedRight);
+      kmbLeft.cmdRunReverse();
+      kmbRight.cmdRunForward();
+    }, 100);
   }
   async function connectRight() {
     await kmbRight.connect();
@@ -100,8 +128,8 @@
   }
   function onChange() {
     kmbRight.cmdSpeed_rpm(speed);
-    kmbRight.cmdRunForward();
     kmbLeft.cmdSpeed_rpm(speed);
+    kmbRight.cmdRunForward();
     kmbLeft.cmdRunReverse();
   }
 </script>
