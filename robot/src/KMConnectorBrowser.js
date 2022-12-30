@@ -976,10 +976,10 @@ class KMComWebBLE extends KMComBase{
     /**
      * WebBluetoohでの接続を開始する
      */
-    connect(){
+    connect(device){
         if (this._peripheral&& this._peripheral.gatt&&this._peripheral.gatt.connected ) {return}
         let gat= (this._peripheral&& this._peripheral.gatt )?this._peripheral.gatt :undefined;//再接続用
-        this._bleConnect(gat).then(obj=>{//info:: resolve({deviceID,deviceName,bleDevice,characteristics});
+        this._bleConnect(gat, device).then(obj=>{//info:: resolve({deviceID,deviceName,bleDevice,characteristics});
             this._peripheral=obj.bleDevice;
             this._deviceInfo.id=this._peripheral.id;
             this._deviceInfo.name=this._peripheral.name;
@@ -1047,13 +1047,31 @@ class KMComWebBLE extends KMComBase{
      * @returns {Promise}
      * @private
      */
-    _bleConnect(gatt_obj) {
+    _bleConnect(gatt_obj, device) {
       //let self = this;
       return new Promise((resolve, reject)=> {
           // let bleDevice;
           // let deviceName;
           // let deviceID;
           if(!gatt_obj){
+              if (device) {
+                  this._bleGatconnect(device.gatt).then(res => {
+                          resolve({
+                              bleDevice: device,
+                              deviceID: device.id,
+                              deviceName: device.name,
+                              characteristics:res.characteristics,
+                              infomation:res.infomation
+
+                          });
+                      })
+                      .catch(error => {
+                          console.log(error);
+                          reject(error);
+                      });
+                return;
+              }
+
               let options = {
                   filters: [{services: [this._MOTOR_BLE_SERVICE_UUID]}],
                   optionalServices:[this._DEVICE_INFORMATION_SERVICE_UUIDS.Service]
@@ -1305,8 +1323,8 @@ class KMMotorOneWebBLE extends KMMotorCommandKMOne{
     /**
      * モーターと接続する
      */
-    connect(){
-        this._KMCom.connect();
+    connect(device){
+        this._KMCom.connect(device);
     }
 
     /**

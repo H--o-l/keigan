@@ -12,7 +12,12 @@
     for (const d of await navigator.bluetooth.getDevices()) {
       if (d.name === 'Bangle.js c3f3') {
         await bangleConnect();
+      } else if (d.name === 'KM-1 JPY9#7C4') {
+        await kmbRight.connect(d);
+      } else if (d.name === 'KM-1 F97V#9A6') {
+        await kmbLeft.connect(d);
       }
+      console.warn(d)
     }
   });
 
@@ -25,9 +30,8 @@
     }
   }
 
-  let kmbLeft: any; // F9
-  let kmbRight: any; // JPY9
-  let leftOk = false;
+  let kmbLeft: any; // F97V#9A6
+  let kmbRight: any; // JPY9#7C4
   let speed = 0;
   let displayCoords = {x: 50, y: 50};
 
@@ -40,12 +44,11 @@
     kmbRight.cmdDisable();
     kmbRight.cmdSpeed_rpm(0);
     // kmbRight.cmdMaxTorque(0.15);
-    kmbRight.cmdMaxTorque(50);
+    kmbRight.cmdMaxTorque(1);
     kmbRight.cmdMaxSpeed(100);
     kmbRight.cmdLed(1, 0, 0, 255);
     kmbRight.cmdEnable();
     kmbRight.cmdRunForward();
-    leftOk = true;
   });
   kmbLeft.on(kmbLeft.EVENT_TYPE.init, (kMDeviceInfo: any) => {
     console.log('onInit:'+kMDeviceInfo.name);
@@ -53,7 +56,7 @@
     kmbLeft.cmdDisable();
     kmbLeft.cmdSpeed_rpm(0);
     // kmbLeft.cmdMaxTorque(0.15);
-    kmbLeft.cmdMaxTorque(50);
+    kmbLeft.cmdMaxTorque(1);
     kmbLeft.cmdMaxSpeed(100);
     kmbLeft.cmdLed(1, 0, 0, 255);
     kmbLeft.cmdEnable();
@@ -113,7 +116,7 @@
       kmbRight.cmdSpeed_rpm(speedRight);
       kmbLeft.cmdRunReverse();
       kmbRight.cmdRunForward();
-    }, 100);
+    }, 300);
   }
   async function connectRight() {
     await kmbRight.connect();
@@ -147,8 +150,8 @@
 <div class='global'>
   <div class='column'>
     <button on:click={stop}>stop</button>
-    <button on:click={connectRight}>connectRight</button>
-    <button on:click={connectLeft}>connectLeft</button>
+    <button on:click={connectRight}>connect JPY9#7C4</button>
+    <button on:click={connectLeft}>connect F97V#9A6</button>
     <button on:click={disconnect}>disConnect</button>
     <label style='display: block;'>
       Speed:
