@@ -3,6 +3,18 @@
   import {browser} from '$app/env';
   import './../KMConnectorBrowser.js';
   import './../puck.js';
+  import {onMount} from 'svelte';
+
+  // console.time();
+
+  onMount(async () => {
+    await new Promise(r => setTimeout(r, 3000));
+    for (const d of await navigator.bluetooth.getDevices()) {
+      if (d.name === 'Bangle.js c3f3') {
+        await bangleConnect();
+      }
+    }
+  });
 
   let lastCall = 0;
   function throttle<T extends (...args: any[]) => void>(fn: T, interval: number): void {
@@ -94,6 +106,7 @@
       speedLeft = Math.max(tmpY - (33 - tmpX), 0) * 3;
       speedRight = Math.max(tmpY - tmpX, 0) * 3;
     }
+    // console.timeLog();
     throttle(() => {
       console.warn('left', speedLeft, 'right', speedRight)
       kmbLeft.cmdSpeed_rpm(speedLeft);

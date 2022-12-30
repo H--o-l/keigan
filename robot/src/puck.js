@@ -131,7 +131,7 @@ ChangeLog:
     else log(1,"Unknown queue item "+JSON.stringify(q));
   }
 
-  function connect(callback) {
+  async function connect(callback) {
     if (!checkIfSupported()) return;
 
     var connection = {
@@ -209,32 +209,6 @@ ChangeLog:
       }
     };
 
-    navigator.bluetooth.requestDevice({
-        filters:[
-          { namePrefix: 'Puck.js' },
-          { namePrefix: 'Pixl.js' },
-          { namePrefix: 'MDBT42Q' },
-          { namePrefix: 'RuuviTag' },
-          { namePrefix: 'iTracker' },
-          { namePrefix: 'Thingy' },
-          { namePrefix: 'Espruino' },
-          { services: [ NORDIC_SERVICE ] }
-        ], optionalServices: [ NORDIC_SERVICE ]}).then(function(device) {
-      log(1, 'Device Name:       ' + device.name);
-      log(1, 'Device ID:         ' + device.id);
-      // Was deprecated: Should use getPrimaryServices for this in future
-      //log('BT>  Device UUIDs:      ' + device.uuids.join('\n' + ' '.repeat(21)));
-      device.addEventListener('gattserverdisconnected', function() {
-        log(1, "Disconnected (gattserverdisconnected)");
-        connection.close();
-      });
-      connection.device = device;
-      connection.reconnect(callback);
-    }).catch(function(error) {
-      log(1, 'ERROR: ' + error);
-      connection.close();
-    });
-
     connection.reconnect = function(callback) {
       connection.device.gatt.connect().then(function(server) {
         log(1, "Connected");
@@ -296,6 +270,44 @@ ChangeLog:
         connection.close();
       });
     };
+
+    try {
+      let device = await navigator.bluetooth.getDevices().then(devices => {
+        for (const d of devices) {
+          if (d.name === 'Bangle.js c3f3') {
+            return d;
+          }
+        }
+      })
+      if (!device) {
+        console.warn('hoel ==== no previous device')
+        device = await navigator.bluetooth.requestDevice({
+          // filters:[{name: 'Bangle.js c3f3'}
+          filters:[
+            { namePrefix: 'Puck.js' },
+            { namePrefix: 'Pixl.js' },
+            { namePrefix: 'MDBT42Q' },
+            { namePrefix: 'RuuviTag' },
+            { namePrefix: 'iTracker' },
+            { namePrefix: 'Thingy' },
+            { namePrefix: 'Espruino' },
+            { services: [ NORDIC_SERVICE ] }
+          ], optionalServices: [ NORDIC_SERVICE ]})
+      }
+      log(1, 'Device Name:       ' + device.name);
+      log(1, 'Device ID:         ' + device.id);
+      // Was deprecated: Should use getPrimaryServices for this in future
+      //log('BT>  Device UUIDs:      ' + device.uuids.join('\n' + ' '.repeat(21)));
+      // device.addEventListener('gattserverdisconnected', function() {
+      //   log(1, "Disconnected (gattserverdisconnected)");
+      //   connection.close();
+      // });
+      connection.device = device;
+      connection.reconnect(callback);
+    } catch (error) {
+      log(1, 'ERROR: ' + error);
+      connection.close();
+    }
 
     return connection;
   };
