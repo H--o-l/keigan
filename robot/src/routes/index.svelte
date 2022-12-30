@@ -1,11 +1,8 @@
 
-<svelte:head>
-  <script src="https://www.puck-js.com/puck.js"></script>
-</svelte:head>
-
 <script lang='ts'>
   import {browser} from '$app/env';
   import './../KMConnectorBrowser.js';
+  import './../puck.js';
 
   let lastCall = 0;
   function throttle<T extends (...args: any[]) => void>(fn: T, interval: number): void {
