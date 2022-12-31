@@ -23,6 +23,9 @@ npm run dev
 
 # or start the server and open the app in a new browser tab
 npm run dev -- --open
+
+# or to serve on local network
+npm run dev -- --host
 ```
 
 ## Building
@@ -36,3 +39,14 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+
+
+# For the accelerometer during dev
+
+1. On your Android device, open the Chrome app.
+2. In the address bar, type chrome://flags and press Enter.
+3. In the search bar, type unsafely-treat-insecure-origin-as-secure and press Enter.
+4. From the dropdown menu, select the Enabled option.
+5. In the text field next to the dropdown menu, type the IP address of the server that you want to use the Accelerometer interface on, for example http://192.168.0.100:8000.
+6. Click the Relaunch button to restart Chrome with the flag enabled.
+

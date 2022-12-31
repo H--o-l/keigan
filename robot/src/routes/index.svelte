@@ -7,19 +7,20 @@
 
   // console.time();
 
-  onMount(async () => {
-    await new Promise(r => setTimeout(r, 3000));
-    for (const d of await navigator.bluetooth.getDevices()) {
-      if (d.name === 'Bangle.js c3f3') {
-        await bangleConnect();
-      } else if (d.name === 'KM-1 JPY9#7C4') {
-        await kmbRight.connect(d);
-      } else if (d.name === 'KM-1 F97V#9A6') {
-        await kmbLeft.connect(d);
-      }
-      console.warn(d)
-    }
-  });
+  // onMount(async () => {
+  //   await new Promise(r => setTimeout(r, 3000));
+  //   for (const d of await navigator.bluetooth.getDevices()) {
+  //     textDisplay += d.name
+  //     if (d.name === 'Bangle.js c3f3') {
+  //       // await bangleConnect();
+  //     } else if (d.name === 'KM-1 JPY9#7C4') {
+  //       await kmbRight.connect(d);
+  //     } else if (d.name === 'KM-1 F97V#9A6') {
+  //       await kmbLeft.connect(d);
+  //     }
+  //     console.warn(d)
+  //   }
+  // });
 
   let lastCall = 0;
   function throttle<T extends (...args: any[]) => void>(fn: T, interval: number): void {
@@ -34,6 +35,7 @@
   let kmbRight: any; // JPY9#7C4
   let speed = 0;
   let displayCoords = {x: 50, y: 50};
+  let textDisplay = '';
 
   kmbRight = new (window as any).KMMotorOneWebBLE();
   kmbLeft = new (window as any).KMMotorOneWebBLE();
@@ -63,10 +65,10 @@
     kmbLeft.cmdRunReverse();
   });
   kmbRight.on(kmbRight.EVENT_TYPE.connectFailure,function(kMDeviceInfo: any, err: any){
-    console.warn('error: ', err);
+    console.warn('textDisplay: ', err);
   });
   kmbLeft.on(kmbRight.EVENT_TYPE.connectFailure,function(kMDeviceInfo: any, err: any){
-    console.warn('error: ', err);
+    console.warn('textDisplay: ', err);
   });
 
   var connection: any;
@@ -96,16 +98,58 @@
       });
     });
   }
+
+
+  // Check if the Permissions API is supported
+  if ('permissions' in navigator) {
+    // Check the current permission status
+    navigator.permissions.query({name: 'accelerometer'}).then(result => {
+      if (result.state === 'granted') {
+        // Permission is already granted, start reading the acceleration data
+        textDisplay += 'granted\n';
+      } else if (result.state === 'prompt') {
+        // Permission is not yet granted, ask for permission
+        navigator.permissions.request({name: 'accelerometer'}).then(result => {
+          if (result.state === 'granted') {
+            // Permission was granted, start reading the acceleration data
+            textDisplay += 'granted\n';
+          } else {
+            textDisplay += 'Permission to access the Accelerometer was denied\n';
+          }
+        });
+      } else {
+        textDisplay += 'Permission to access the Accelerometer is not available\n';
+      }
+    });
+  } else {
+    textDisplay += 'Permissions API is not supported\n';
+  }
+
+
+  if (!('Accelerometer' in window)) {
+    textDisplay += 'Accelerometer not in window\n'
+  }
+  try {
+    // Create a new Accelerometer object
+    const accelerometer = new (window as any).Accelerometer({ frequency: 60 });
+    // Start reading the acceleration data
+    accelerometer.addEventListener('reading', () => {
+      newAcc({x: accelerometer.x * 10, y: accelerometer.y * 10, z: accelerometer.z * 10});
+    });
+    accelerometer.start();
+  } catch (error) {
+    textDisplay += 'error ' + error;
+  }
   function newAcc(coords: {x: number, y: number, z: number}) {
     const x = 100 - ((coords.x + 100) / 2);
     const y = (coords.y + 100) / 2;
-    displayCoords = {x, y};
+    displayCoords = {x, y: 100 - y};
     // console.warn('x', x, 'y', y)
     let speedLeft = 0;
     let speedRight = 0;
-    let tmpY = y - 50;
-    let tmpX = x / 3;
-    if (tmpY > 0) {
+    let tmpY = x - 50;
+    let tmpX = y / 3;
+    if (tmpY > 5) {
       speedLeft = Math.max(tmpY - (33 - tmpX), 0) * 3;
       speedRight = Math.max(tmpY - tmpX, 0) * 3;
     }
@@ -116,7 +160,7 @@
       kmbRight.cmdSpeed_rpm(speedRight);
       kmbLeft.cmdRunReverse();
       kmbRight.cmdRunForward();
-    }, 300);
+    }, 50);
   }
   async function connectRight() {
     await kmbRight.connect();
@@ -147,6 +191,7 @@
   }
 </script>
 
+<p>{textDisplay}</p>
 <div class='global'>
   <div class='column'>
     <button on:click={stop}>stop</button>
