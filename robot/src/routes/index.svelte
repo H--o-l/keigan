@@ -6,21 +6,28 @@
   import {onMount} from 'svelte';
 
   // console.time();
+  let textDisplay = '';
 
-  // onMount(async () => {
-  //   await new Promise(r => setTimeout(r, 3000));
-  //   for (const d of await navigator.bluetooth.getDevices()) {
-  //     textDisplay += d.name
-  //     if (d.name === 'Bangle.js c3f3') {
-  //       // await bangleConnect();
-  //     } else if (d.name === 'KM-1 JPY9#7C4') {
-  //       await kmbRight.connect(d);
-  //     } else if (d.name === 'KM-1 F97V#9A6') {
-  //       await kmbLeft.connect(d);
-  //     }
-  //     console.warn(d)
-  //   }
-  // });
+  onMount(async () => {
+    try {
+      await new Promise(r => setTimeout(r, 3000));
+        textDisplay += (await navigator.bluetooth.getDevices()).length;
+
+      for (const d of await navigator.bluetooth.getDevices()) {
+        textDisplay += d.name;
+        if (d.name === 'Bangle.js c3f3') {
+          // await bangleConnect();
+        } else if (d.name === 'KM-1 JPY9#7C4') {
+          await kmbRight.connect(d);
+        } else if (d.name === 'KM-1 F97V#9A6') {
+          await kmbLeft.connect(d);
+        }
+        console.warn(d)
+      }
+    } catch (error) {
+      textDisplay += 'error ' + error;
+    }
+  });
 
   let lastCall = 0;
   function throttle<T extends (...args: any[]) => void>(fn: T, interval: number): void {
@@ -35,40 +42,59 @@
   let kmbRight: any; // JPY9#7C4
   let speed = 0;
   let displayCoords = {x: 50, y: 50};
-  let textDisplay = '';
 
   kmbRight = new (window as any).KMMotorOneWebBLE();
   kmbLeft = new (window as any).KMMotorOneWebBLE();
+  let rightConnected = false;
+  let leftConnected = false;
 
   kmbRight.on(kmbRight.EVENT_TYPE.init, (kMDeviceInfo: any) => {
     console.log('onInit:'+kMDeviceInfo.name);
     kmbRight.cmdDisableIMUMeasurement();
     kmbRight.cmdDisable();
-    kmbRight.cmdSpeed_rpm(0);
+    kmbRight.cmdCurveType(0);
+    kmbRight.cmdAcc(0.03);
+    kmbRight.cmdDec(0.03);
+    kmbRight.cmdSpeed(0);  // rpm
     // kmbRight.cmdMaxTorque(0.15);
     kmbRight.cmdMaxTorque(1);
-    kmbRight.cmdMaxSpeed(100);
+    kmbRight.cmdMaxSpeed(100);  // rad/s
     kmbRight.cmdLed(1, 0, 0, 255);
     kmbRight.cmdEnable();
     kmbRight.cmdRunForward();
+    rightConnected = true;
   });
   kmbLeft.on(kmbLeft.EVENT_TYPE.init, (kMDeviceInfo: any) => {
     console.log('onInit:'+kMDeviceInfo.name);
     kmbLeft.cmdDisableIMUMeasurement();
     kmbLeft.cmdDisable();
-    kmbLeft.cmdSpeed_rpm(0);
+    kmbLeft.cmdCurveType(0);
+    kmbLeft.cmdAcc(0.03);
+    kmbLeft.cmdDec(0.03);
+    kmbLeft.cmdSpeed(0);
     // kmbLeft.cmdMaxTorque(0.15);
     kmbLeft.cmdMaxTorque(1);
     kmbLeft.cmdMaxSpeed(100);
     kmbLeft.cmdLed(1, 0, 0, 255);
     kmbLeft.cmdEnable();
     kmbLeft.cmdRunReverse();
+    leftConnected = true;
   });
   kmbRight.on(kmbRight.EVENT_TYPE.connectFailure,function(kMDeviceInfo: any, err: any){
-    console.warn('textDisplay: ', err);
+    textDisplay += ' == ' + err;
+    rightConnected = false;
   });
   kmbLeft.on(kmbRight.EVENT_TYPE.connectFailure,function(kMDeviceInfo: any, err: any){
-    console.warn('textDisplay: ', err);
+    textDisplay += ' == ' + err;
+    leftConnected = false;
+  });
+  kmbRight.on(kmbRight.EVENT_TYPE.disconnect,function(kMDeviceInfo: any, err: any){
+    textDisplay += ' == ' + err;
+    rightConnected = false;
+  });
+  kmbLeft.on(kmbRight.EVENT_TYPE.disconnect,function(kMDeviceInfo: any, err: any){
+    textDisplay += ' == ' + err;
+    leftConnected = false;
   });
 
   var connection: any;
@@ -149,18 +175,22 @@
     let speedRight = 0;
     let tmpY = x - 50;
     let tmpX = y / 3;
-    if (tmpY > 5) {
-      speedLeft = Math.max(tmpY - (33 - tmpX), 0) * 3;
-      speedRight = Math.max(tmpY - tmpX, 0) * 3;
+    if (tmpY > 0.05) {
+      speedLeft = Math.max(tmpY - (33 - tmpX), 0) * 0.8;
+      speedRight = Math.max(tmpY - tmpX, 0) * 0.8;
     }
     // console.timeLog();
     throttle(() => {
-      console.warn('left', speedLeft, 'right', speedRight)
-      kmbLeft.cmdSpeed_rpm(speedLeft);
-      kmbRight.cmdSpeed_rpm(speedRight);
-      kmbLeft.cmdRunReverse();
-      kmbRight.cmdRunForward();
-    }, 50);
+      // textDisplay = " === " + speedLeft + " === ";
+      // textDisplay += speedRight;
+      // console.warn('left', speedLeft, 'right', speedRight)
+      if (leftConnected && rightConnected) {
+        kmbLeft.cmdSpeed(speedLeft);
+        kmbLeft.cmdRunReverse();
+        kmbRight.cmdSpeed(speedRight);
+        kmbRight.cmdRunForward();
+      }
+    }, 100);
   }
   async function connectRight() {
     await kmbRight.connect();
@@ -169,9 +199,9 @@
     await kmbLeft.connect();
   }
   function stop() {
-    kmbRight.cmdSpeed_rpm(0);
+    kmbRight.cmdSpeed(0);
     kmbRight.cmdRunForward();
-    kmbLeft.cmdSpeed_rpm(0);
+    kmbLeft.cmdSpeed(0);
     kmbLeft.cmdRunReverse();
   }
   async function disconnect() {
@@ -184,14 +214,16 @@
     kmbLeft.disConnect();
   }
   function onChange() {
-    kmbRight.cmdSpeed_rpm(speed);
-    kmbLeft.cmdSpeed_rpm(speed);
+    kmbRight.cmdSpeed(speed);
+    kmbLeft.cmdSpeed(speed);
     kmbRight.cmdRunForward();
     kmbLeft.cmdRunReverse();
   }
 </script>
 
 <p>{textDisplay}</p>
+<p>Left connected {leftConnected}</p>
+<p>Right connected {rightConnected}</p>
 <div class='global'>
   <div class='column'>
     <button on:click={stop}>stop</button>
@@ -200,7 +232,7 @@
     <button on:click={disconnect}>disConnect</button>
     <label style='display: block;'>
       Speed:
-      <input type='range' bind:value={speed} on:change={onChange} min='0' max='50'>
+      <input type='range' bind:value={speed} on:change={onChange} min='0' max='20'>
     </label>
   </div>
   <div class='column'>
